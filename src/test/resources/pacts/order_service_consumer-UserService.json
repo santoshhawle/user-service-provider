@@ -1,0 +1,106 @@
+{
+  "consumer": {
+    "name": "order_service_consumer"
+  },
+  "interactions": [
+    {
+      "comments": {
+        "testname": "org.example.orderserviceconsumer.ConsumerPactTest.testGetUserFromProvider(MockServer)",
+        "text": [
+          "Request for user 1",
+          "Response contains id, name, email"
+        ]
+      },
+      "description": "Request for user 1",
+      "key": "e61d25b1",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "User with id 1 exists"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/users/1"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "email": "string",
+            "id": 100,
+            "name": "string"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "generators": {
+          "body": {
+            "$.email": {
+              "size": 20,
+              "type": "RandomString"
+            },
+            "$.id": {
+              "max": 2147483647,
+              "min": 0,
+              "type": "RandomInt"
+            },
+            "$.name": {
+              "size": 20,
+              "type": "RandomString"
+            }
+          }
+        },
+        "headers": {
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.email": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "number"
+                }
+              ]
+            },
+            "$.name": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": {
+    "pact-jvm": {
+      "version": "4.6.15"
+    },
+    "pactSpecification": {
+      "version": "4.0"
+    },
+    "plugins": [
+
+    ]
+  },
+  "provider": {
+    "name": "UserService"
+  }
+}
