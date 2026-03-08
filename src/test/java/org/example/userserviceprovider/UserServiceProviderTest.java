@@ -5,6 +5,7 @@ import au.com.dius.pact.provider.junit5.PactVerificationContext;
 import au.com.dius.pact.provider.junit5.PactVerificationInvocationContextProvider;
 import au.com.dius.pact.provider.junitsupport.Provider;
 import au.com.dius.pact.provider.junitsupport.State;
+import au.com.dius.pact.provider.junitsupport.loader.PactBroker;
 import au.com.dius.pact.provider.junitsupport.loader.PactFolder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
@@ -14,7 +15,8 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Provider("UserService")  // Must match consumer test providerName
-@PactFolder("src/test/resources/pacts")     // Folder where the consumer pact json is stored
+//@PactFolder("src/test/resources/pacts")     // Folder where the consumer pact json is stored
+@PactBroker(url="http://localhost:9292")
 @ExtendWith(PactVerificationInvocationContextProvider.class)
 public class UserServiceProviderTest {
 
