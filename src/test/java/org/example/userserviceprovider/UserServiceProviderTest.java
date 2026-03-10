@@ -19,8 +19,8 @@ import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Provider("UserService")  // Must match consumer test providerName
-@PactFolder("src/test/resources/pacts")     // Folder where the consumer pact json is stored
-// @PactBroker(url="http://localhost:9292")  // Uncomment when Pact Broker is available
+//@PactFolder("src/test/resources/pacts")     // Folder where the consumer pact json is stored
+@PactBroker(url="http://localhost:9292")  // Uncomment when Pact Broker is available
 @ExtendWith(PactVerificationInvocationContextProvider.class)
 @VerificationReports(value = {"markdown"}, reportDir = "target/myreports")
 public class UserServiceProviderTest {
@@ -75,6 +75,9 @@ public class UserServiceProviderTest {
         // Configure the HTTP target to point to the provider service running locally
         // on the dynamically allocated port (configured by @SpringBootTest)
         context.setTarget(new HttpTestTarget(LOCALHOST, port));
+        System.setProperty("pact.verifier.publishResults","true");
+        System.setProperty("pact.provider.version","1.0.0");
+        System.setProperty("pact.provider.tag","feature_p_1");
     }
 
     /**
