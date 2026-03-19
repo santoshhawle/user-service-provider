@@ -1,0 +1,76 @@
+name: Provider Contract Tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  provider-verification:
+    name: Provider Pact Verification
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      pact-broker:
+        image: pactfoundation/pact-broker
+        env:
+          PACT_BROKER_DATABASE_ADAPTER: postgres
+          PACT_BROKER_DATABASE_HOST: postgres
+          PACT_BROKER_DATABASE_USERNAME: postgres
+          PACT_BROKER_DATABASE_PASSWORD: postgres
+          PACT_BROKER_DATABASE_NAME: postgres
+        ports:
+          - 9292:9292
+        options: >-
+          --health-cmd "curl -f http://localhost:9292/diagnostic/status/heartbeat || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout Provider
+        uses: actions/checkout@v4
+
+      - name: Checkout Consumer
+        uses: actions/checkout@v4
+        with:
+          repository: santoshhawle/order-service-consumer
+          path: order-service-consumer
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Generate Consumer Pacts
+        working-directory: order-service-consumer
+        run: mvn -B test
+
+      - name: Publish Pacts to Broker
+        working-directory: order-service-consumer
+        run: mvn -B pact:publish
+
+      - name: Run Provider Verification
+        run: |
+          mvn -B test \
+            -Dpact.verifier.publishResults=true \
+            -Dpact.provider.version=${{ github.sha }} \
+            -Dpact.provider.tag=${{ github.ref_name }}
