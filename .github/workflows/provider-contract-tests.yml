@@ -77,6 +77,15 @@ jobs:
             -Dpact.provider.version=${{ github.sha }} \
             -Dpact.provider.tag=${{ github.ref_name }}
 
+      - name: Can I Deploy?
+        run: |
+          docker run --rm --network pact-network \
+            pactfoundation/pact-cli \
+            pact-broker can-i-deploy \
+            --pacticipant UserService \
+            --version ${{ github.sha }} \
+            --broker-base-url http://pact-broker:9292
+
       - name: Stop Containers
         if: always()
         run: |
