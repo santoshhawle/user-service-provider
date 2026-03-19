@@ -12,38 +12,6 @@ jobs:
     name: Provider Pact Verification
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      pact-broker:
-        image: pactfoundation/pact-broker
-        env:
-          PACT_BROKER_DATABASE_ADAPTER: postgres
-          PACT_BROKER_DATABASE_HOST: postgres
-          PACT_BROKER_DATABASE_USERNAME: postgres
-          PACT_BROKER_DATABASE_PASSWORD: postgres
-          PACT_BROKER_DATABASE_NAME: postgres
-          PACT_BROKER_PUBLIC_HEARTBEAT: "true"
-        ports:
-          - 9292:9292
-        options: >-
-          --health-cmd "wget -q --spider http://localhost:9292/diagnostic/status/heartbeat || exit 1"
-          --health-interval 10s
-          --health-timeout 10s
-          --health-retries 15
-
     steps:
       - name: Checkout Provider
         uses: actions/checkout@v4
@@ -61,6 +29,39 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
+      - name: Start Pact Broker
+        run: |
+          docker network create pact-network
+          docker run -d --name postgres --network pact-network \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_DB=postgres \
+            postgres:15
+          echo "Waiting for Postgres..."
+          until docker exec postgres pg_isready -U postgres > /dev/null 2>&1; do
+            sleep 2
+          done
+          echo "Postgres is ready!"
+          docker run -d --name pact-broker --network pact-network \
+            -p 9292:9292 \
+            -e PACT_BROKER_DATABASE_ADAPTER=postgres \
+            -e PACT_BROKER_DATABASE_HOST=postgres \
+            -e PACT_BROKER_DATABASE_USERNAME=postgres \
+            -e PACT_BROKER_DATABASE_PASSWORD=postgres \
+            -e PACT_BROKER_DATABASE_NAME=postgres \
+            -e PACT_BROKER_PUBLIC_HEARTBEAT=true \
+            pactfoundation/pact-broker
+          echo "Waiting for Pact Broker..."
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:9292/diagnostic/status/heartbeat | grep -q "200"; then
+              echo "Pact Broker is ready!"
+              break
+            fi
+            echo "Attempt $i/30 - waiting..."
+            sleep 5
+          done
+          curl -f http://localhost:9292/diagnostic/status/heartbeat || (echo "Pact Broker failed to start" && docker logs pact-broker && exit 1)
+
       - name: Generate Consumer Pacts
         working-directory: order-service-consumer
         run: mvn -B test
@@ -75,3 +76,9 @@ jobs:
             -Dpact.verifier.publishResults=true \
             -Dpact.provider.version=${{ github.sha }} \
             -Dpact.provider.tag=${{ github.ref_name }}
+
+      - name: Stop Containers
+        if: always()
+        run: |
+          docker rm -f pact-broker postgres 2>/dev/null || true
+          docker network rm pact-network 2>/dev/null || true
